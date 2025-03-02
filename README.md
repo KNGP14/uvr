@@ -46,6 +46,11 @@
   ```
   candump can0
   ```
+  ```
+  can0  701   [1]  05
+  can0  201   [8]  CB 03 EE 01 00 00 00 00
+  ...
+  ```
 
 ## Nutzungshinweise
 
