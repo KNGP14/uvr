@@ -7,7 +7,7 @@
 - Raspberry Pi (getestet mit 4B und 2B unter Ubuntu)
 - CAN-Bus Adapter [SBC-CAN01 von joy-it][canbusadapter]
 
-### Installation des CAN-Bux Adapter
+### Installation des CAN-Bus Adapter
 - Verkabelung entsprechend der [Anleitung][canbusadapterdocs]
 - SPI-Kommunikation aktivieren
   ```
