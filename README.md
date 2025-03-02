@@ -83,6 +83,14 @@ coming soon: Bei Verwendung eines Standard-Raspian Betriebssystems kann die komp
 ```
 sudo apt update && sudo apt install golang -y && go version
 ```
+#### Quellcode herunterladen
+```
+git clone https://github.com/KNGP14/uvr && cd uvr
+```
+#### Projekt initialisieren
+```
+go mod init github.com/brutella/uvr
+```
 #### Installation notwendiger Go-Pakete/Bibliotheken
 ```
 go get github.com/brutella/can
@@ -90,14 +98,11 @@ go get github.com/brutella/can
 ```
 go get github.com/brutella/canopen
 ```
-#### Quellcode herunterladen
-```
-git clone https://github.com/KNGP14/uvr && cd uvr
-```
 #### Quellcode kompillieren
-Das kompllieren erfolgt aus dem Root-Verzeichnis des Projektes heraus, der Ordner mit der `Makefile`-Datei.
+Das kompillieren erfolgt aus dem Root-Verzeichnis des Projektes heraus, der Ordner mit der `Makefile`-Datei.
+Die Versionsnummer `VERSION` kann bei jedem Kompillierungsvorgang gleich bleiben und ist nur relevant für die Aufbewahrung verschiedener Versionen (beim Testen).
 ```
-tbd
+VERSION=0.0.1 make build-uvrdump
 ```
 
 ## Referenzen
