@@ -55,7 +55,7 @@
   ```
 - CAN-Interface aktivieren:
   ```
-  sudo ip link set can0 up type can bitrate 500000
+  sudo ip link set can0 up type can bitrate 50000
   ```
 - Kommunikation testen durch Lesen der CAN-Kommunikation:
   ```
