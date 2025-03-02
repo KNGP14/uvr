@@ -9,44 +9,58 @@
 
 ### Installation des CAN-Bux Adapter
 - Verkabelung entsprechend der [Anleitung][canbusadapterdocs]
-- SOCKETCAN-Treiber einrichten
+- SPI-Kommunikation aktivieren
   ```
-  sudo apt-get install can-utils -y
-  ```
-  Kernelversion identifizieren für weitere Schritte:
-  ```
-  uname -r
+  sudo raspi-config
   ```
   ```
-  6.6.51+rpt-rpi-v7
-  >> Kernel-Version: 6.6.51
+  Interface Options > SPI > Yes
   ```
-  boot-Konfiguration anpassen:
-  ```
-  sudo nano /boot/firmware/config.txt
-  ```
-  Im Bereich [all] folgende Zeilen hinzufügen:
-  - Kernel > 4.4x
+- Kernel konfigruieren
+  - Kernelversion identifizieren für weitere Schritte:
     ```
-    dtparam=spi=on 
-    dtoverlay=mcp2515-can0,oscillator=16000000,interrupt=25 
-    dtoverlay=sp1-1cs
+    uname -r
     ```
-  - Kernel < 4.4.x
     ```
-    dtparam=spi=on 
-    dtoverlay=mcp2515-can0,oscillator=16000000,interrupt=25 
-    dtoverlay=sp1-bcm2835-overlay 
+    6.6.51+rpt-rpi-v7
+    >> Kernel-Version: 6.6.51
     ```
-  Raspberry neustarten:
+  - boot-Konfiguration anpassen:
+    ```
+    sudo nano /boot/firmware/config.txt
+    ```
+    Im Bereich [all] folgende Zeilen hinzufügen:
+    - Kernel > 4.4x
+      ```
+      dtparam=spi=on 
+      dtoverlay=mcp2515-can0,oscillator=16000000,interrupt=25 
+      dtoverlay=sp1-1cs
+      ```
+    - Kernel < 4.4.x
+      ```
+      dtparam=spi=on 
+      dtoverlay=mcp2515-can0,oscillator=16000000,interrupt=25 
+      dtoverlay=sp1-bcm2835-overlay 
+      ```
+  - Raspberry neustarten:
+    ```
+    sudo reboot
+    ```
+- SOCKETCAN-Treiber laden (nicht persitent, automatisches Laden wird später eingerichtet)
   ```
-  sudo reboot
+  sudo modprobe can
+  ```
+  ```
+  sudo modprobe can_raw
   ```
 - CAN-Interface aktivieren:
   ```
   sudo ip link set can0 up type can bitrate 500000
   ```
 - Kommunikation testen durch Lesen der CAN-Kommunikation:
+  ```
+  sudo apt-get install can-utils -y
+  ```
   ```
   candump can0
   ```
@@ -55,7 +69,35 @@
   can0  201   [8]  CB 03 EE 01 00 00 00 00
   ...
   ```
-
+#### Automation bei Systemstart
+- Treiber
+  ```
+  sudo nano /etc/modules-load.d/can.conf
+  ```
+  ```
+  can
+  can_raw
+  ```
+- CAN-Interface
+  ```
+  sudo systemctl start systemd-networkd
+  ```
+  ```
+  sudo systemctl enable systemd-networkd
+  ```
+  ```
+  sudo nano /etc/systemd/network/80-can.network
+  ```
+  ```
+  [Match]
+  Name=can0
+  [CAN]
+  BitRate=50K
+  RestartSec=100ms
+  ```
+  ```
+  sudo systemctl restart systemd-networkd
+  ```
 ## Nutzungshinweise
 
 Mithilfe der uvrdump-Executable ([Release-Tab][releasetab]) können sämtliche Ein- und Ausgänge eines [UVR1611][uvr1611] eingelesen werden.
