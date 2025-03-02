@@ -15,7 +15,11 @@
   ```
   Kernelversion identifizieren für weitere Schritte:
   ```
-  uname -a
+  uname -r
+  ```
+  ```
+  6.6.51+rpt-rpi-v7
+  >> Kernel-Version: 6.6.51
   ```
   boot-Konfiguration anpassen:
   ```
