@@ -4,7 +4,7 @@
 > Work in progress! Do not use it for now!
 
 ## Hardware
-- Raspberry Pi (getestet mit 4B und 2B)
+- Raspberry Pi (getestet mit 4B und 2B unter Ubuntu)
 - CAN-Bus Adapter [SBC-CAN01 von joy-it][canbusadapter]
 
 ### Installation des CAN-Bux Adapter
