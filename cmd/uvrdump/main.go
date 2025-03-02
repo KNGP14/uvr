@@ -5,6 +5,7 @@ import (
 	"github.com/brutella/can"
 	"github.com/brutella/uvr"
 	"log"
+	"fmt"
 )
 
 func readOutlet(outlet uvr.Outlet, client *uvr.Client) (descr string, mode string, val string) {
@@ -18,24 +19,6 @@ func readOutlet(outlet uvr.Outlet, client *uvr.Client) (descr string, mode strin
 
 	if value, err := client.Read(outlet.State); err == nil {
 		val = value.(string)
-	}
-
-	return
-}
-
-func readAnalogOutlet(analogoutlet uvr.AnalogOutlet, client *uvr.Client) (descr string, mode string, val float32) {
-	if value, err := client.Read(analogoutlet.Description); err == nil {
-		descr = value.(string)
-	}
-
-	if value, err := client.Read(analogoutlet.Mode); err == nil {
-		mode = value.(string)
-	}
-
-	if value, err := client.Read(analogoutlet.Value); err == nil {
-		if float, ok := value.(float32); ok == true {
-			val = float
-		}
 	}
 
 	return
@@ -59,7 +42,7 @@ func readInlet(inlet uvr.Inlet, client *uvr.Client) (descr string, state string,
 	return
 }
 
-func readOutlets(client *uvr.Client) {
+func readOutlets(client *uvr.Client, serverid int) {
 	outlets := []uvr.Outlet{
 		uvr.NewOutlet(0x1),
 		uvr.NewOutlet(0x2),
@@ -76,33 +59,14 @@ func readOutlets(client *uvr.Client) {
 		uvr.NewOutlet(0xd),
 	}
 
-	log.Printf("+---------+-----------------+--------+------+")
-	log.Printf("| Ausgang | Bezeichnung     | Mode   | Wert |")
-	log.Printf("+---------+-----------------+--------+------+")
 	for index, outlet := range outlets {
 		descr, mode, val := readOutlet(outlet, client)
-		log.Printf("| %-7d | %-15s | %-6s | %-4s |", index+1, descr, mode, val)
+		fmt.Printf("{\"KNOTEN\":\"%d\",\"AUSGANG\":\"%d\",\"BEZEICHNUNG\":\"%s\",\"MODUS\":\"%s\",\"WERT\":\"%s\"},", serverid, index+1, descr, mode, val)
 	}
-	log.Printf("+---------+-----------------+--------+------+")
+
 }
 
-func readAnalogOutlets(client *uvr.Client) {
-	analogoutlets := []uvr.AnalogOutlet{
-		uvr.NewAnalogOutlet(0xf),
-		uvr.NewAnalogOutlet(0x10),
-	}
-
-	log.Printf("+---------+-----------------+--------+------+")
-	log.Printf("| Ausgang | Bezeichnung     | Mode   | Wert |")
-	log.Printf("+---------+-----------------+--------+------+")
-	for index, analogoutlet := range analogoutlets {
-		descr, mode, val := readAnalogOutlet(analogoutlet, client)
-		log.Printf("| %-7d | %-15s | %-6s | %.1f |", index+1, descr, mode, val)
-	}
-	log.Printf("+---------+-----------------+--------+------+")
-}
-
-func readInlets(client *uvr.Client) {
+func readInlets(client *uvr.Client, serverid int) {
 	inlets := []uvr.Inlet{
 		uvr.NewInlet(0x1),
 		uvr.NewInlet(0x2),
@@ -122,24 +86,22 @@ func readInlets(client *uvr.Client) {
 		uvr.NewInlet(0x10),
 	}
 
-	log.Printf("+---------+-----------------+--------+------")
-	log.Printf("| Eingang | Bezeichnung     | Status | Wert")
-	log.Printf("+---------+-----------------+--------+------")
 	for index, inlet := range inlets {
 		descr, state, val := readInlet(inlet, client)
-		log.Printf("| %-7d | %-15s | %-6s | %.1f", index+1, descr, state, val)
+		fmt.Printf("{\"KNOTEN\":\"%d\",\"EINGANG\":\"%d\",\"BEZEICHNUNG\":\"%s\",\"MODUS\":\"%s\",\"WERT\":\"%f\"},", serverid, index+1, descr, state, val)
 	}
-	log.Printf("+---------+-----------------+--------+------")
+
 }
 
 func HandleCANopen(frame can.Frame) {
-	log.Printf("%X % X\n", frame.ID, frame.Data)
+	fmt.Printf("%X % X\n", frame.ID, frame.Data)
 }
 
 func main() {
 	var (
 		clientId = flag.Int("client_id", 16, "id of the client; range from [1...254]")
-		serverId = flag.Int("server_id", 1, "id of the server to which the client connects to: range from [1...254]")
+		serveraId = flag.Int("server_a_id", 1, "id of the server to which the client connects to: range from [1...254]")
+		serverbId = flag.Int("server_b_id", 2, "id of the server to which the client connects to: range from [1...254]")
 		iface    = flag.String("if", "can0", "name of the can network interface")
 	)
 
@@ -156,15 +118,25 @@ func main() {
 	go bus.ConnectAndPublish()
 
 	nodeID := uint8(*clientId)
-	uvrID := uint8(*serverId)
+	uvrID := uint8(*serveraId)
 
 	c := uvr.NewClient(nodeID, bus)
 	c.Connect(uvrID)
 
-	readInlets(c)
-	readOutlets(c)
-	readAnalogOutlets(c)
+	fmt.Printf("{\"values\": [")
+	readInlets(c,*serveraId)
+	readOutlets(c,*serveraId)
 
 	c.Disconnect(uvrID)
+
+	uvrIDB := uint8(*serverbId)
+	cb := uvr.NewClient(nodeID, bus)
+	cb.Connect(uvrIDB)
+	readInlets(cb,*serverbId)
+	readOutlets(cb,*serverbId)
+	cb.Disconnect(uvrIDB)
+
+	fmt.Printf("]}")
+
 	bus.Disconnect()
 }
