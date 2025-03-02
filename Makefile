@@ -4,7 +4,7 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 
-VERSION=$(shell git describe --exact-match --tags 2>/dev/null)
+#VERSION=$(shell git describe --exact-match --tags 2>/dev/null)
 
 BUILD_DIR=build
 
@@ -31,7 +31,7 @@ package-uvrinflux: build-uvrinflux
 	tar -cvzf $(PACKAGE_UVRINFLUX).tar.gz -C $(BUILD_DIR) $(PACKAGE_UVRINFLUX)
 
 build-uvrdump:
-	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrdump-$(VERSION)_linux_armhf/usr/bin/uvrdump -i cmd/uvrdump/main.go
+	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrdump-$(VERSION)_linux_armhf/uvrdump -i cmd/uvrdump/main.go
 
 build-uvrinflux:
-	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrinflux-$(VERSION)_linux_armhf/usr/bin/uvrinflux -i cmd/uvrinflux/main.go
+	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrinflux-$(VERSION)_linux_armhf/uvrinflux -i cmd/uvrinflux/main.go
