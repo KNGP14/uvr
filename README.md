@@ -57,6 +57,8 @@
 Mithilfe der uvrdump-Executable ([Release-Tab][releasetab]) können sämtliche Ein- und Ausgänge eines [UVR1611][uvr1611] eingelesen werden.
 ```
 ./uvrdump --help
+```
+```
 Usage of uvrdump:
   -client_id int
         id of the client; range from [1...254] (default 16)
