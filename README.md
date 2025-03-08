@@ -129,10 +129,6 @@ sudo apt update && sudo apt install golang -y && go version
 ```
 git clone https://github.com/KNGP14/uvr && cd uvr
 ```
-#### Projekt initialisieren
-```
-go mod init github.com/brutella/uvr
-```
 #### Installation notwendiger Go-Pakete/Bibliotheken
 ```
 go get github.com/brutella/can
