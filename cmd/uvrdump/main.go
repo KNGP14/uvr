@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 )
 
 var silentMode bool = false
+var errorMessage []string
 
 type inletStruct struct {
 	EingangID   int     `json:"Eingang-ID"`
@@ -37,13 +39,19 @@ type serverStruct struct {
 
 type DataStruct struct {
 	Zeitstempel time.Time      `json:"Zeitstempel"`
-	Fehler      string         `json:"Fehler"`
+	Fehler      []string       `json:"Fehler"`
 	Knoten      []serverStruct `json:"Knoten"`
 }
 
 func readOutlet(outlet uvr.Outlet, client *uvr.Client) (descr string, mode string, val string) {
 	if value, err := client.Read(outlet.Description); err == nil {
 		descr = value.(string)
+	} else {
+		errorMessage = append(errorMessage, fmt.Sprintf("Fehler beim Abruf von Beschreibung für Ausgang: %s", err))
+		descr = "N/A"
+		if !silentMode {
+			log.Print(errorMessage)
+		}
 	}
 
 	if value, err := client.Read(outlet.Mode); err == nil {
@@ -52,6 +60,12 @@ func readOutlet(outlet uvr.Outlet, client *uvr.Client) (descr string, mode strin
 
 	if value, err := client.Read(outlet.State); err == nil {
 		val = value.(string)
+	} else {
+		errorMessage = append(errorMessage, fmt.Sprintf("Fehler beim Abruf des Wertes für Ausgang: %s", err))
+		val = "N/A"
+		if !silentMode {
+			log.Print(errorMessage)
+		}
 	}
 
 	return
@@ -60,15 +74,32 @@ func readOutlet(outlet uvr.Outlet, client *uvr.Client) (descr string, mode strin
 func readInlet(inlet uvr.Inlet, client *uvr.Client) (descr string, state string, val float32) {
 	if value, err := client.Read(inlet.Description); err == nil {
 		descr = value.(string)
+	} else {
+		errorMessage = append(errorMessage, fmt.Sprintf("Fehler beim Abruf von Beschreibung für Eingang: %s", err))
+		descr = "N/A"
+		if !silentMode {
+			log.Print(errorMessage)
+		}
 	}
 
 	if value, err := client.Read(inlet.State); err == nil {
 		state = value.(string)
+	} else {
+		errorMessage = append(errorMessage, fmt.Sprintf("Fehler beim Abruf des Status für Eingang: %s", err))
+		state = "N/A"
+		if !silentMode {
+			log.Print(errorMessage)
+		}
 	}
 
 	if value, err := client.Read(inlet.Value); err == nil {
 		if float, ok := value.(float32); ok {
 			val = float
+		}
+	} else {
+		errorMessage = append(errorMessage, fmt.Sprintf("Fehler beim Abruf des Wertes für Eingang: %s", err))
+		if !silentMode {
+			log.Print(errorMessage)
 		}
 	}
 
@@ -151,9 +182,24 @@ func readInlets(client *uvr.Client, serverid int) (inletData []inletStruct) {
 
 }
 
-func HandleCANopen(frame can.Frame) {
-	if !silentMode {
-		log.Printf("%X % X\n", frame.ID, frame.Data)
+func disconnectWithTimeout(client *uvr.Client, uvrID uint8) error {
+	errChan := make(chan error, 1)
+
+	// Starte Disconnect in einer Goroutine
+	go func() {
+		errChan <- client.Disconnect(uvrID)
+	}()
+
+	select {
+	case err := <-errChan:
+		// Disconnect abgeschlossen
+		if err != nil {
+			return fmt.Errorf("beim Trennen von %d ist ein Fehler aufgetreten (%v)", uvrID, err)
+		}
+		return nil
+	case <-time.After(5 * time.Second):
+		// Timeout erreicht
+		return fmt.Errorf("beim Trennen von %d ist nach 5 Sekunden der Timeout abgelaufen", uvrID)
 	}
 }
 
@@ -177,7 +223,13 @@ func getServerData(client *uvr.Client, serverId int) (serverData serverStruct) {
 	}
 
 	// Verbindung zur UVR trennen
-	client.Disconnect(uvrID)
+	err := disconnectWithTimeout(client, uvrID)
+	if err != nil {
+		errorMessage = append(errorMessage, fmt.Sprintf("Fehler beim Trennen der Verbindung zum Knoten %d: %s", serverId, err))
+		if !silentMode {
+			log.Print(errorMessage)
+		}
+	}
 
 	return serverData
 
@@ -199,63 +251,70 @@ func main() {
 	// Logging konfigurieren
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	silentMode = *silent
-
 	if !silentMode {
-		log.Printf("clientId:          %d", *clientId)
-		log.Printf("singleServerId:    %d", *singleServerId)
-		log.Printf("multipleServerIds: %s", *multipleServerIds)
-		log.Printf("canInterface:      %s", *canInterface)
-		log.Print("slientMode:        ", silentMode)
+		log.Printf("client:     %d", *clientId)
+		log.Printf("server_id:  %d", *singleServerId)
+		log.Printf("server_ids: %s", *multipleServerIds)
+		log.Printf("interface:  %s", *canInterface)
+		log.Printf("output:     %s", *canInterface)
+		log.Print("silent:     ", silentMode)
 	}
 
-	// CAN-Busverbindung aufbauen
-	bus, err := can.NewBusForInterfaceWithName(*canInterface)
-	if err != nil {
-		if !silentMode {
-			log.Fatal(err)
-		}
-		os.Exit(1)
-	}
-	go bus.ConnectAndPublish()
-	nodeID := uint8(*clientId)
-	client := uvr.NewClient(nodeID, bus)
-
-	// Knoten-Daten anlegen
+	// Knoten-Daten vorbereiten
 	var serverDataList []serverStruct
 
-	// Einzel-Knotenabfrage oder mehrere Knoten abfragen
-	if len(*multipleServerIds) == 0 {
+	// CAN-Bus initialisieren
+	bus, err := can.NewBusForInterfaceWithName(*canInterface)
+	if err == nil {
 
-		// Einzelnen UVR-Knoten abfragen
-		serverData := getServerData(client, *singleServerId)
-		serverDataList = append(serverDataList, serverData)
+		// CAN-Busverbindung aufbauen
+		go bus.ConnectAndPublish()
+		nodeID := uint8(*clientId)
+		client := uvr.NewClient(nodeID, bus)
 
-	} else {
+		// Einzel-Knotenabfrage oder mehrere Knoten abfragen
+		if len(*multipleServerIds) == 0 {
 
-		// Mehrere UVR-Knoten abfragen
-		serverIds := strings.Split(*multipleServerIds, ",")
-		for index, serverId := range serverIds {
-			serverIdInt, err := strconv.Atoi(strings.ReplaceAll(serverId, " ", ""))
-			if err != nil {
-				if !silentMode {
-					log.Printf("Fehler beim Einlesen der Knoten-IDs: [%d] %v", index, err)
-				}
-				os.Exit(1)
-			}
-			serverData := getServerData(client, serverIdInt)
+			// Einzelnen UVR-Knoten abfragen
+			serverData := getServerData(client, *singleServerId)
 			serverDataList = append(serverDataList, serverData)
+
+		} else {
+
+			// Mehrere UVR-Knoten abfragen
+			serverIds := strings.Split(*multipleServerIds, ",")
+			for index, serverId := range serverIds {
+				serverIdInt, err := strconv.Atoi(strings.ReplaceAll(serverId, " ", ""))
+				if err == nil {
+
+					serverData := getServerData(client, serverIdInt)
+					serverDataList = append(serverDataList, serverData)
+
+				} else {
+					errorMessage = append(errorMessage, fmt.Sprintf("Format der angegebenen Knoten-IDs fehlerhaft: [%d] %v", index, err))
+					if !silentMode {
+						log.Print(errorMessage)
+					}
+				}
+			}
+
 		}
 
-	}
+		// CAN-Bus schließen
+		bus.Disconnect()
 
-	// CAN-Bus schließen
-	bus.Disconnect()
+	} else {
+		errorMessage = append(errorMessage, fmt.Sprintf("Fehler bei NewBusForInterfaceWithName: %s", err))
+		if !silentMode {
+			log.Print(errorMessage)
+		}
+	}
 
 	// Daten-Container anlegen
 	dataContainer := DataStruct{
 		Zeitstempel: time.Now(),
 		Knoten:      serverDataList,
-		Fehler:      "",
+		Fehler:      errorMessage,
 	}
 
 	// Daten-Container in JSON umwandeln
@@ -289,7 +348,13 @@ func main() {
 		os.Exit(1)
 	}
 	if !silentMode {
-		log.Print("JSON erfolgreich in daten.json gespeichert.")
+		log.Printf("JSON erfolgreich in %s gespeichert.", *outputFile)
+	}
+
+	// Programm beenden
+	if len(errorMessage) == 0 {
 		os.Exit(0)
+	} else {
+		os.Exit(1)
 	}
 }
