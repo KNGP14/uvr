@@ -33,5 +33,8 @@ package-uvrinflux: build-uvrinflux
 build-uvrdump:
 	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrdump-$(VERSION)_linux_armhf/uvrdump cmd/uvrdump/main.go
 
+build-uvrdump-x64:
+	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/uvrdump-$(VERSION)_linux_armhf/uvrdump_x64 cmd/uvrdump/main.go
+
 build-uvrinflux:
 	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrinflux-$(VERSION)_linux_armhf/uvrinflux cmd/uvrinflux/main.go

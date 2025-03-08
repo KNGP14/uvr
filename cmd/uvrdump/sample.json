@@ -1,0 +1,30 @@
+{
+  "Zeitstempel": "2025-03-08T19:12:31.079646288+01:00",
+  "Knoten": [
+    {
+      "Knoten-ID": 1,
+      "Eingänge": [
+        {
+          "Eingang-ID": 1,
+          "Bezeichnung": "Kesseltemperatur",
+          "Modus": "Standard",
+          "Wert": 60.7
+        },
+        {
+          "Eingang-ID": 2,
+          "Bezeichnung": "Ablufttemperatur",
+          "Modus": "Standard",
+          "Wert": 50.1
+        }
+      ],
+      "Ausgänge": [
+        {
+          "Ausgang-ID": 1,
+          "Bezeichnung": "Wasserpumpe",
+          "Modus": "Standard",
+          "Wert": 1
+        }
+      ]
+    }
+  ]
+}
