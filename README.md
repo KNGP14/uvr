@@ -1,8 +1,5 @@
 # CAN-Bus Kommunikation zwischen Linux und UVR1611
 
-> [!WARNING]
-> Work in progress! Do not use it for now!
-
 ## Hardware
 - Raspberry Pi (getestet mit 4B und 2B unter Ubuntu)
 - CAN-Bus Adapter [SBC-CAN01 von joy-it][canbusadapter]
