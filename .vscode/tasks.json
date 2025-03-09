@@ -23,7 +23,7 @@
         {
             "label": "Copy uvr2json to Raspberry",
             "type": "shell",
-            "command": "scp build/uvr2json-_linux_arm/uvr2json $(cat .vscode/tasks_scp-target)",
+            "command": "scp build/uvr2json-$(git describe --exact-match --tags 2>/dev/null)_linux_arm/uvr2json $(cat .vscode/tasks_scp-target)",
             "problemMatcher": {
                 "owner": "scp",
                 "fileLocation": [
