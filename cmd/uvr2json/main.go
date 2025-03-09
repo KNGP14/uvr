@@ -269,7 +269,7 @@ func main() {
 		canInterface = flag.String("interface", "can0", "Name des CAN-Bus Netzwerkinterface -")
 		outputFile   = flag.String("output", "daten.json", "Pfad für Ausgabedatei -")
 		verbose      = flag.Bool("v", false, "Ausführliche Ausgaben erzeugen - default(false)")
-		pidFileName  = flag.String("pidfile", "uvr2json.pid", "Pfad für PID-File zur Erkennung laufender Vorgänge -")
+		pidFileName  = flag.String("pidfile", "/tmp/uvr2json.pid", "Pfad für PID-File zur Erkennung laufender Vorgänge -")
 	)
 	flag.Parse()
 
