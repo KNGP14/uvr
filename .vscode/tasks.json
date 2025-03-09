@@ -1,0 +1,58 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build uvr2json",
+            "type": "shell",
+            "command": "make build-uvr2json-arm",
+            "problemMatcher": {
+                "owner": "make",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "source": "make",
+                "pattern": {
+                    "regexp": "(.*error.*)",
+                    "message": 1
+                }
+            }
+        },
+        {
+            "label": "Copy uvr2json to Raspberry",
+            "type": "shell",
+            "command": "scp build/uvr2json-_linux_arm/uvr2json $(cat .vscode/tasks_scp-target)",
+            "problemMatcher": {
+                "owner": "scp",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "source": "scp",
+                "pattern": {
+                    "regexp": "(.*failed.*)",
+                    "message": 1
+                }
+            }
+        },
+        {
+            "label": "Build and Copy uvr2json to Raspberry",
+            "dependsOrder": "sequence",
+            "dependsOn": ["Build uvr2json", "Copy uvr2json to Raspberry"],
+            "problemMatcher": {
+                "owner": "tasks",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "source": "tasks",
+                "pattern": {
+                    "regexp": "(.*exit code: 1.*)",
+                    "message": 1
+                }
+            }
+        }
+    ]
+}
