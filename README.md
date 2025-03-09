@@ -120,7 +120,7 @@ Usage of uvr2json:
 ## Entwicklungsumgebung
 Nur erforderlich, falls der Quellcode angepasst werden soll.
 
-Bei Verwendung eines Standard-Raspian Betriebssystems kann die kompollierte Version im [Release-Tab][releasetab] verwendet werden.
+Bei Verwendung eines Standard-Raspian Betriebssystems kann die kompillierte Version im [Release-Tab][releasetab] verwendet werden.
 
 #### Installation von Go
 ```
