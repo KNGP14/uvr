@@ -4,12 +4,12 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 
-#VERSION=$(shell git describe --exact-match --tags 2>/dev/null)
+VERSION=$(shell git describe --exact-match --tags 2>/dev/null)
 
 BUILD_DIR=build
 
-PACKAGE_UVRDUMP=uvrdump-$(VERSION)_linux_armhf
-PACKAGE_UVRINFLUX=uvrinflux-$(VERSION)_linux_armhf
+PACKAGE_UVR2JSON_ARM=uvr2json-$(VERSION)_linux_arm
+PACKAGE_UVR2JSON_AMD64=uvr2json-$(VERSION)_linux_amd64
 
 unexport GOPATH
 
@@ -24,17 +24,11 @@ clean:
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)
 
-package-uvrdump: build-uvrdump
-	tar -cvzf $(PACKAGE_UVRDUMP).tar.gz -C $(BUILD_DIR) $(PACKAGE_UVRDUMP)
+package-uvr2json-arm: build-uvr2json-arm
+	tar -cvzf $(PACKAGE_UVR2JSON_ARM).tar.gz -C $(BUILD_DIR) $(PACKAGE_UVR2JSON_ARM)
 
-package-uvrinflux: build-uvrinflux
-	tar -cvzf $(PACKAGE_UVRINFLUX).tar.gz -C $(BUILD_DIR) $(PACKAGE_UVRINFLUX)
+build-uvr2json-arm:
+	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/$(PACKAGE_UVR2JSON_ARM)/uvr2json cmd/uvr2json/main.go
 
-build-uvrdump:
-	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrdump-$(VERSION)_linux_armhf/uvrdump cmd/uvrdump/main.go
-
-build-uvrdump-x64:
-	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/uvrdump-$(VERSION)_linux_armhf/uvrdump_x64 cmd/uvrdump/main.go
-
-build-uvrinflux:
-	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/uvrinflux-$(VERSION)_linux_armhf/uvrinflux cmd/uvrinflux/main.go
+build-uvr2json-amd64:
+	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(PACKAGE_UVR2JSON_AMD64)/uvr2json cmd/uvr2json/main.go

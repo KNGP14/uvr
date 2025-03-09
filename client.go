@@ -1,9 +1,10 @@
 package uvr
 
 import (
+	"time"
+
 	"github.com/brutella/can"
 	"github.com/brutella/canopen"
-	"time"
 )
 
 type Client struct {
@@ -17,7 +18,7 @@ func NewClient(id uint8, bus *can.Bus) *Client {
 }
 
 func (c *Client) Connect(id uint8) error {
-	c.heartbeat = canopen.ProduceHeartbeat(c.id, canopen.Operational, c.bus, time.Second*10)
+	c.heartbeat = canopen.ProduceHeartbeat(c.id, canopen.Operational, c.bus, time.Second*5)
 	return Connect(id, c.id, c.bus)
 }
 

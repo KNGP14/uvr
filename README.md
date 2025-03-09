@@ -102,18 +102,19 @@
 
 Mithilfe der uvrdump-Executable ([Release-Tab][releasetab]) können sämtliche Ein- und Ausgänge eines [UVR1611][uvr1611] eingelesen werden.
 ```
-./uvrdump --help
+./uvr2json --help
 ```
 ```
-Usage of uvrdump:
-  -client_id int
-        id of the client; range from [1...254] (default 16)
-  -if string
-        name of the can network interface (default "can0")
-  -server_a_id int
-        id of the server to which the client connects to: range from [1...254] (default 1)
-  -server_b_id int
-        id of the server to which the client connects to: range from [1...254] (default 2)
+Usage of uvr2json:
+  -client int
+    	Client-ID [1...254] - (default 16)
+  -interface string
+    	Name des CAN-Bus Netzwerkinterface - (default "can0")
+  -output string
+    	Pfad für Ausgabedatei - (default "daten.json")
+  -server_ids string
+    	Kommagetrennte Liste von Knoten-IDs der abzufragenden UVR: 1,2,3,... - (default "1")
+  -v	Ausführliche Ausgaben erzeugen - default(false)
 ```
 
 ## Entwicklungsumgebung
@@ -138,13 +139,12 @@ go get github.com/brutella/canopen
 ```
 #### Quellcode kompillieren
 Das kompillieren erfolgt aus dem Root-Verzeichnis des Projektes heraus, der Ordner mit der `Makefile`-Datei.
-Die Versionsnummer `VERSION` kann bei jedem Kompillierungsvorgang gleich bleiben und ist nur relevant für die Aufbewahrung verschiedener Versionen (beim Testen).
 ```
-VERSION=0.0.1 make build-uvrdump
+make build-uvr2json-arm
 ```
 
 ## Referenzen
-Der Quellcode für uvrdump ist geforked von [brutella][uvrdump] und verwendet dessen Bilbiotheken [can][can] und [canopen][canopen] für die Kommunikation über den CAN-Bus.
+Der Quellcode für uvr2json ist geforked von [brutella][uvrdump] und verwendet dessen Bilbiotheken [can][can] und [canopen][canopen] für die Kommunikation über den CAN-Bus.
 
 [can]: https://github.com/brutella/can
 [canopen]: https://github.com/brutella/canopen

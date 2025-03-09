@@ -2,9 +2,10 @@ package uvr
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/brutella/can"
 	"github.com/brutella/canopen"
-	"time"
 )
 
 func Disconnect(serverID uint8, clientID uint8, bus *can.Bus) error {
@@ -61,7 +62,7 @@ func sendConnManagementData(b []byte, serverID uint8, clientID uint8, bus *can.B
 	}
 
 	if b7 := frm.Data[7]; b7 != 0x00 {
-		return fmt.Errorf("Invalid byte 7 %X", b7)
+		return fmt.Errorf("Invalid byte 7 %X , debug using cansend can0 %x#%x", b7, uint16(MPDOClientServerConnManagement)+uint16(clientID), b)
 	}
 
 	return nil
