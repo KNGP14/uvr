@@ -112,6 +112,8 @@ func readOutlets(client *uvr.Client, serverid int, verbose bool) (outletData []o
 
 	for index, outlet := range outlets {
 
+		time.Sleep(50 * time.Millisecond)
+
 		if len(errors) > 2 {
 			errors = append(errors, fmt.Errorf("Abbruch aufgrund zu vieler Fehler beim Abfragen der Eingänge"))
 			return
@@ -164,6 +166,8 @@ func readInlets(client *uvr.Client, serverid int, verbose bool) (inletData []inl
 	}
 
 	for index, inlet := range inlets {
+
+		time.Sleep(50 * time.Millisecond)
 
 		if len(errors) > 2 {
 			errors = append(errors, fmt.Errorf("Abbruch aufgrund zu vieler Fehler beim Abfragen der Ausgänge"))
