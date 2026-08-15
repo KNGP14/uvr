@@ -15,10 +15,10 @@ import (
 )
 
 type inletStruct struct {
-	EingangID   int     `json:"Eingang-ID"`
-	Bezeichnung string  `json:"Bezeichnung"`
-	Modus       string  `json:"Modus"`
-	Wert        float32 `json:"Wert"`
+	EingangID   int         `json:"Eingang-ID"`
+	Bezeichnung string      `json:"Bezeichnung"`
+	Modus       string      `json:"Modus"`
+	Wert        interface{} `json:"Wert"`
 }
 
 type outletStruct struct {
@@ -64,7 +64,7 @@ func readOutlet(outlet uvr.Outlet, client *uvr.Client) (return_description strin
 	return
 }
 
-func readInlet(inlet uvr.Inlet, client *uvr.Client) (return_description string, return_state string, return_value float32, return_error error) {
+func readInlet(inlet uvr.Inlet, client *uvr.Client) (return_description string, return_state string, return_value interface{}, return_error error) {
 	return_error = nil
 
 	if value, err := client.Read(inlet.Description); err == nil {
@@ -82,8 +82,13 @@ func readInlet(inlet uvr.Inlet, client *uvr.Client) (return_description string, 
 	}
 
 	if value, err := client.Read(inlet.Value); err == nil {
-		if float, ok := value.(float32); ok {
-			return_value = float
+		switch v := value.(type) {
+		case float32:
+			return_value = v
+		case string:
+			return_value = strings.TrimSpace(v)
+		default:
+			return_value = 0.0
 		}
 	} else {
 		return_error = fmt.Errorf("Wert konnte nicht abgerufen werden (%s)", err)
@@ -187,7 +192,7 @@ func readInlets(client *uvr.Client, serverid int, verbose bool) (inletData []inl
 			inletData = append(inletData, inlet)
 
 			if verbose {
-				log.Printf("KNOTEN: \"%d\", EINGANG: \"%d\", BEZEICHNUNG: \"%s\", MODUS: \"%s\", WERT: \"%f\"", serverid, index+1, descr, state, val)
+				log.Printf("KNOTEN: \"%d\", EINGANG: \"%d\", BEZEICHNUNG: \"%s\", MODUS: \"%s\", WERT: \"%v\"", serverid, index+1, descr, state, val)
 			}
 
 		} else {

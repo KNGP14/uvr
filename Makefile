@@ -29,6 +29,8 @@ package-uvr2json-arm: build-uvr2json-arm
 
 build-uvr2json-arm:
 	GOOS=linux GOARCH=arm GOARM=6 $(GOBUILD) -o $(BUILD_DIR)/$(PACKAGE_UVR2JSON_ARM)/uvr2json cmd/uvr2json/main.go
+	chmod +x $(BUILD_DIR)/$(PACKAGE_UVR2JSON_ARM)/uvr2json
 
 build-uvr2json-amd64:
 	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(PACKAGE_UVR2JSON_AMD64)/uvr2json cmd/uvr2json/main.go
+	chmod +x $(BUILD_DIR)/$(PACKAGE_UVR2JSON_AMD64)/uvr2json
