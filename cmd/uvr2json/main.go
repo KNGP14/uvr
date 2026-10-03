@@ -2,17 +2,26 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/brutella/can"
 	"github.com/brutella/uvr"
 )
+
+// errBufferFull wird gemeldet, wenn die Sende-Queue von can0 voll ist (ENOBUFS).
+// Weitere Abfragen sind dann zwecklos, der CAN-Controller oder der Bus hängt vermutlich.
+var errBufferFull = errors.New("Abbruch: CAN-Sendepuffer voll (ENOBUFS), CAN-Controller oder Bus hängt vermutlich, can0 prüfen")
+
+// Nach dieser Zeit gilt eine leere PID-Datei als liegengeblieben.
+const stalePIDFileAge = 10 * time.Minute
 
 type inletStruct struct {
 	EingangID   int         `json:"Eingang-ID"`
@@ -46,7 +55,7 @@ func readOutlet(outlet uvr.Outlet, client *uvr.Client) (return_description strin
 	if value, err := client.Read(outlet.Description); err == nil {
 		return_description = value.(string)
 	} else {
-		return_error = fmt.Errorf("Beschreibung konnte nicht abgerufen werden (%s)", err)
+		return_error = fmt.Errorf("Beschreibung konnte nicht abgerufen werden (%w)", err)
 		return
 	}
 
@@ -57,7 +66,7 @@ func readOutlet(outlet uvr.Outlet, client *uvr.Client) (return_description strin
 	if value, err := client.Read(outlet.State); err == nil {
 		return_value = value.(string)
 	} else {
-		return_error = fmt.Errorf("Wert konnte nicht abgerufen werden (%s)", err)
+		return_error = fmt.Errorf("Wert konnte nicht abgerufen werden (%w)", err)
 		return
 	}
 
@@ -70,14 +79,14 @@ func readInlet(inlet uvr.Inlet, client *uvr.Client) (return_description string, 
 	if value, err := client.Read(inlet.Description); err == nil {
 		return_description = value.(string)
 	} else {
-		return_error = fmt.Errorf("Beschreibung konnte nicht abgerufen werden (%s)", err)
+		return_error = fmt.Errorf("Beschreibung konnte nicht abgerufen werden (%w)", err)
 		return
 	}
 
 	if value, err := client.Read(inlet.State); err == nil {
 		return_state = value.(string)
 	} else {
-		return_error = fmt.Errorf("Status konnte nicht abgerufen werden (%s)", err)
+		return_error = fmt.Errorf("Status konnte nicht abgerufen werden (%w)", err)
 		return
 	}
 
@@ -91,7 +100,7 @@ func readInlet(inlet uvr.Inlet, client *uvr.Client) (return_description string, 
 			return_value = 0.0
 		}
 	} else {
-		return_error = fmt.Errorf("Wert konnte nicht abgerufen werden (%s)", err)
+		return_error = fmt.Errorf("Wert konnte nicht abgerufen werden (%w)", err)
 		return
 	}
 
@@ -120,7 +129,7 @@ func readOutlets(client *uvr.Client, serverid int, verbose bool) (outletData []o
 		time.Sleep(50 * time.Millisecond)
 
 		if len(errors) > 2 {
-			errors = append(errors, fmt.Errorf("Abbruch aufgrund zu vieler Fehler beim Abfragen der Eingänge"))
+			errors = append(errors, fmt.Errorf("Abbruch aufgrund zu vieler Fehler beim Abfragen der Ausgänge"))
 			return
 		}
 
@@ -141,7 +150,11 @@ func readOutlets(client *uvr.Client, serverid int, verbose bool) (outletData []o
 			}
 
 		} else {
-			errors = append(errors, fmt.Errorf("Fehler bei Eingang %d: %s", index+1, err))
+			errors = append(errors, fmt.Errorf("Fehler bei Ausgang %d: %w", index+1, err))
+			if uvr.IsBufferFull(err) {
+				errors = append(errors, errBufferFull)
+				return
+			}
 		}
 	}
 
@@ -175,7 +188,7 @@ func readInlets(client *uvr.Client, serverid int, verbose bool) (inletData []inl
 		time.Sleep(50 * time.Millisecond)
 
 		if len(errors) > 2 {
-			errors = append(errors, fmt.Errorf("Abbruch aufgrund zu vieler Fehler beim Abfragen der Ausgänge"))
+			errors = append(errors, fmt.Errorf("Abbruch aufgrund zu vieler Fehler beim Abfragen der Eingänge"))
 			return
 		}
 
@@ -196,7 +209,11 @@ func readInlets(client *uvr.Client, serverid int, verbose bool) (inletData []inl
 			}
 
 		} else {
-			errors = append(errors, fmt.Errorf("Fehler bei Ausgang %d: %s", index+1, err))
+			errors = append(errors, fmt.Errorf("Fehler bei Eingang %d: %w", index+1, err))
+			if uvr.IsBufferFull(err) {
+				errors = append(errors, errBufferFull)
+				return
+			}
 		}
 	}
 
@@ -229,7 +246,17 @@ func getServerData(client *uvr.Client, serverId int, verbose bool) (serverData s
 
 	// Verbindung zur UVR aufbauen
 	uvrID := uint8(serverId)
-	client.Connect(uvrID)
+	if err := client.Connect(uvrID); err != nil {
+		errors = append(errors, fmt.Errorf("Fehler beim Verbinden mit Knoten %d: %w", serverId, err))
+
+		// Bei vollem Sendepuffer wurde die Anfrage nie gesendet, Abfragen und Trennen sind zwecklos
+		if uvr.IsBufferFull(err) {
+			client.StopHeartbeat()
+			errors = append(errors, errBufferFull)
+			serverData = serverStruct{KnotenID: serverId}
+			return
+		}
+	}
 
 	// Rückgabe vorbereiten
 	var inletData []inletStruct
@@ -269,6 +296,46 @@ func getServerData(client *uvr.Client, serverId int, verbose bool) (serverData s
 
 }
 
+// acquirePIDFile legt die PID-Datei exklusiv an und schreibt die eigene PID hinein.
+// Eine liegengebliebene PID-Datei (z. B. nach log.Fatal in einer Bibliothek) wird ersetzt.
+func acquirePIDFile(name string) (*os.File, error) {
+	file, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	if os.IsExist(err) && pidFileIsStale(name) {
+		log.Printf("Liegengebliebene PID-Datei %s wird ersetzt.", name)
+		if err = os.Remove(name); err == nil {
+			file, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Fprintf(file, "%d\n", os.Getpid())
+	return file, nil
+}
+
+// pidFileIsStale prüft, ob der Prozess aus der PID-Datei nicht mehr läuft.
+// Eine leere Datei (alte Versionen schreiben keine PID) gilt nach stalePIDFileAge als liegengeblieben.
+func pidFileIsStale(name string) bool {
+	info, err := os.Stat(name)
+	if err != nil {
+		return false
+	}
+
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return false
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 0 {
+		return time.Since(info.ModTime()) > stalePIDFileAge
+	}
+
+	err = syscall.Kill(pid, 0)
+	return errors.Is(err, syscall.ESRCH)
+}
+
 func main() {
 
 	// Parmeter einlesen
@@ -301,7 +368,7 @@ func main() {
 	}
 
 	// Vorgang abbrechen, falls bereits eine Instanz aktiv (bspw. via cron)
-	pidFile, err := os.OpenFile(*pidFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	pidFile, err := acquirePIDFile(*pidFileName)
 	if err != nil {
 		if os.IsExist(err) {
 			log.Print("Fehler: Es läuft bereits eine Instanz von uvr2json im Hintergrund.")
