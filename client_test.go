@@ -34,6 +34,7 @@ func newFakeBus(failWrites int, respond func(can.Frame) []can.Frame) (*can.Bus, 
 		closed:     make(chan struct{}),
 	}
 	bus := can.NewBus(can.NewReadWriteCloser(rwc))
+	dispatcherFor(bus) // subscribe before the receive goroutine starts
 	go bus.ConnectAndPublish()
 
 	return bus, rwc
@@ -79,6 +80,21 @@ func (rwc *fakeRWC) Write(b []byte) (int, error) {
 func (rwc *fakeRWC) Close() error {
 	rwc.once.Do(func() { close(rwc.closed) })
 	return nil
+}
+
+// deliverAfter delivers frames after d, as if they were received from the bus.
+func (rwc *fakeRWC) deliverAfter(d time.Duration, frames ...can.Frame) {
+	go func() {
+		time.Sleep(d)
+		for _, frm := range frames {
+			data, _ := can.Marshal(frm)
+			select {
+			case rwc.rx <- data:
+			case <-rwc.closed:
+				return
+			}
+		}
+	}()
 }
 
 func (rwc *fakeRWC) writes() int {

@@ -4,18 +4,11 @@ import (
 	"fmt"
 	"github.com/brutella/can"
 	"github.com/brutella/canopen"
-	"github.com/brutella/canopen/sdo"
 	"time"
 )
 
 func ReadFromIndex(idx canopen.ObjectIndex, nodeID uint8, bus *can.Bus) (interface{}, error) {
-	upload := sdo.Upload{
-		ObjectIndex:   idx,
-		RequestCobID:  uint16(SSDOClientToServer2) + uint16(nodeID),
-		ResponseCobID: uint16(SSDOServerToClient2) + uint16(nodeID),
-	}
-
-	b, err := upload.Do(bus)
+	b, err := upload(idx, nodeID, bus)
 
 	if err != nil {
 		return nil, err
@@ -59,12 +52,7 @@ func ReadFromIndex(idx canopen.ObjectIndex, nodeID uint8, bus *can.Bus) (interfa
 }
 
 func ReadStringAtIndex(idx canopen.ObjectIndex, nodeID uint8, bus *can.Bus) (string, error) {
-	upload := sdo.Upload{
-		ObjectIndex:   idx,
-		RequestCobID:  uint16(SSDOClientToServer2) + uint16(nodeID),
-		ResponseCobID: uint16(SSDOServerToClient2) + uint16(nodeID),
-	}
-	b, err := upload.Do(bus)
+	b, err := upload(idx, nodeID, bus)
 	if err != nil {
 		return "", err
 	}

@@ -296,6 +296,34 @@ func getServerData(client *uvr.Client, serverId int, verbose bool) (serverData s
 
 }
 
+// writeFileAtomic schreibt data zuerst in eine temporäre Datei und benennt sie dann um.
+// Wer die Datei liest, sieht so immer entweder den alten oder den neuen, vollständigen Inhalt.
+func writeFileAtomic(name string, data []byte, perm os.FileMode) error {
+	tmp := name + ".tmp"
+	file, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.Write(data)
+	if err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		// Rechte unabhängig von der umask setzen
+		err = os.Chmod(tmp, perm)
+	}
+	if err != nil {
+		os.Remove(tmp)
+		return err
+	}
+
+	return os.Rename(tmp, name)
+}
+
 // acquirePIDFile legt die PID-Datei exklusiv an und schreibt die eigene PID hinein.
 // Eine liegengebliebene PID-Datei (z. B. nach log.Fatal in einer Bibliothek) wird ersetzt.
 func acquirePIDFile(name string) (*os.File, error) {
@@ -455,33 +483,20 @@ func main() {
 			log.Print("Ausgelesene Daten:\n" + string(jsonData))
 		}
 
-		// Ausgabedatei erzeugen
-		file, err := os.Create(*outputFile)
+		// Daten-Container als JSON in Ausgabedatei schreiben (atomar, damit nie eine halbe Datei gelesen wird)
+		err = writeFileAtomic(*outputFile, jsonData, 0644)
 		if err == nil {
 
-			defer file.Close()
-
-			// Daten-Container als JSON in Ausgabedatei schreiben
-			_, err = file.Write(jsonData)
-			if err == nil {
-
-				log.Print("")
-				if len(errorMessages) == 0 {
-					log.Printf("Ergebnisse ohne Fehler in %s geschrieben.", *outputFile)
-				} else {
-					log.Printf("Ergebnisse mit %d Fehlern in %s geschrieben.", len(errorMessages), *outputFile)
-				}
-				log.Print("")
-
+			log.Print("")
+			if len(errorMessages) == 0 {
+				log.Printf("Ergebnisse ohne Fehler in %s geschrieben.", *outputFile)
 			} else {
-				errorMessages = append(errorMessages, fmt.Sprintf("Fehler beim Schreiben der Datei: %s", err))
-				if *verbose {
-					log.Print(errorMessages)
-				}
+				log.Printf("Ergebnisse mit %d Fehlern in %s geschrieben.", len(errorMessages), *outputFile)
 			}
+			log.Print("")
 
 		} else {
-			errorMessages = append(errorMessages, fmt.Sprintf("Fehler beim Erstellen der Datei: %s", err))
+			errorMessages = append(errorMessages, fmt.Sprintf("Fehler beim Schreiben der Datei: %s", err))
 			if *verbose {
 				log.Print(errorMessages)
 			}

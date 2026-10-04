@@ -22,7 +22,10 @@ type Client struct {
 	heartbeat chan<- struct{}
 }
 
+// NewClient returns a client with node id on bus.
+// Call it before bus.ConnectAndPublish is started.
 func NewClient(id uint8, bus *can.Bus) *Client {
+	dispatcherFor(bus)
 	return &Client{id, bus, nil}
 }
 
@@ -61,10 +64,6 @@ func (c *Client) Read(i canopen.ObjectIndex) (v interface{}, err error) {
 	}
 
 	return
-}
-
-func (c *Client) Write(b []byte, i canopen.ObjectIndex) error {
-	return WriteToIndex(i, b, c.id, c.bus)
 }
 
 // IsBufferFull returns true if err was caused by a full CAN transmit queue (ENOBUFS).
