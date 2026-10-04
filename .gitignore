@@ -2,3 +2,4 @@
 build
 .vscode/tasks_scp-target
 analyse/
+IMPLEMENTATION_PLAN.md
