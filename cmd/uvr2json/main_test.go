@@ -304,3 +304,21 @@ func TestWriteFileAtomic(t *testing.T) {
 		t.Errorf("temporary file left: %v", err)
 	}
 }
+
+func TestWriteFileAtomicFailsInReadOnlyDir(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root may write into read-only directories")
+	}
+
+	dir := t.TempDir()
+	os.Chmod(dir, 0555)
+	t.Cleanup(func() { os.Chmod(dir, 0755) })
+
+	name := filepath.Join(dir, "data.json")
+	if err := writeFileAtomic(name, []byte("{}"), 0644); err == nil {
+		t.Fatal("expected error")
+	}
+	if _, err := os.Stat(name + ".tmp"); !os.IsNotExist(err) {
+		t.Errorf("temporary file left: %v", err)
+	}
+}

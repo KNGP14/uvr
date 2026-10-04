@@ -402,6 +402,7 @@ func main() {
 			log.Print("Fehler: Es läuft bereits eine Instanz von uvr2json im Hintergrund.")
 			os.Exit(1)
 		}
+		log.Printf("Fehler: PID-File %s konnte nicht angelegt werden (%s), Schutz vor parallelen Läufen fehlt.", *pidFileName, err)
 	}
 	defer pidFile.Close()
 
@@ -497,16 +498,12 @@ func main() {
 
 		} else {
 			errorMessages = append(errorMessages, fmt.Sprintf("Fehler beim Schreiben der Datei: %s", err))
-			if *verbose {
-				log.Print(errorMessages)
-			}
+			log.Printf("Fehler: Ergebnisse konnten nicht in %s geschrieben werden (%s)", *outputFile, err)
 		}
 
 	} else {
 		errorMessages = append(errorMessages, fmt.Sprintf("Fehler beim Umwandeln in JSON-Format: %s", err))
-		if *verbose {
-			log.Print(errorMessages)
-		}
+		log.Printf("Fehler beim Umwandeln in JSON-Format: %s", err)
 	}
 
 	// Programm beenden
@@ -518,7 +515,7 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		log.Print("Fehler: PID-File zur Erkennung laufender Vorgänge konnte nicht gelöscht werden.")
+		log.Printf("Fehler: PID-File zur Erkennung laufender Vorgänge konnte nicht gelöscht werden (%s).", err)
 		os.Exit(1)
 	}
 }
